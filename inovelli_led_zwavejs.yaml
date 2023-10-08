@@ -29,9 +29,6 @@ fields:
       area:
         multiple: true
         device:
-          - integration: zwave_js
-            manufacturer: Inovelli
-            model: LZW36, LZW30-SN, LZW31-SN
           - integration: mqtt
             manufacturer: Inovelli
             model: Inovelli 2-in-1 switch + dimmer (VZM31-SN)
@@ -59,15 +56,6 @@ fields:
       device:
         multiple: true
         filter:
-          - integration: zwave_js
-            manufacturer: Inovelli
-            model: LZW36
-          - integration: zwave_js
-            manufacturer: Inovelli
-            model: LZW30-SN
-          - integration: zwave_js
-            manufacturer: Inovelli
-            model: LZW31-SN
           - integration: mqtt
             manufacturer: Inovelli
             model: Inovelli 2-in-1 switch + dimmer (VZM31-SN)
@@ -85,7 +73,6 @@ fields:
               - fan
               - light
               - switch
-            #model: LZW36 # Device model should really be an option for entities.
 
   LEDcolor:
     name: LED Color (non-effect)
@@ -106,7 +93,6 @@ fields:
           - Purple
           - Light Pink
           - Pink
-          - Hot Pink
           - White
 
   LEDbrightness:
@@ -189,11 +175,24 @@ fields:
         options:
           - "Off"
           - Solid
-          - Chase
-          - Fast Blink
           - Slow Blink
-          - Blink
+          - Medium Blink
+          - Fast Blink
           - Pulse
+          - Slow Chase
+          - Chase
+          - Fast Chase
+          - Open Close
+          - Small to Big
+          - Aurora
+          - Slow Falling
+          - Medium Falling
+          - Fast Falling
+          - Slow Rising
+          - Medium Rising
+          - Fast Rising
+          - Slow Siren
+          - Fast Siren
 
   brightness:
     name: Effect Brightness
@@ -226,7 +225,6 @@ fields:
           - Purple
           - Light Pink
           - Pink
-          - Hot Pink
           - White
 
 
@@ -246,7 +244,6 @@ variables:
     "purple": 195
     "light pink": 220
     "pink": 234
-    "hot pink": 234
     "white": 255
 
   duration_values:
@@ -292,31 +289,9 @@ variables:
     "forever": 255
     "indefinitely": 255
 
-  switch_effects:
-    "off": 0
-    "solid": 1
-    "fast blink": 2
-    "chase": 2
-    "slow blink": 3
-    "blink": 3
-    "pulse": 4
-
-  strip_effects:
-    "off": 0
-    "solid": 1
-    "chase": 2
-    "fast blink": 3
-    "slow blink": 4
-    "blink": 4
-    "pulse": 5
-
 ##################
 # Store model names for RED and BLUE versions for reference and validation checks if necessary
 ##################
-  zwave_models: # RED
-    - LZW31-SN # dimmer
-    - LZW30-SN # switch
-    - LZW36 # combo_light, combo_fan
   zigbee_models: # BLUE
     - Inovelli 2-in-1 switch + dimmer (VZM31-SN) # blue_dimmer_switch
 
@@ -504,46 +479,6 @@ sequence:
 ##################
   - repeat:
       for_each:
-        - device_type: dimmer
-          call_type: zwave_js
-          entities: >
-            {% set entities = namespace(entities=[]) %}
-            {% for ent in all_selected_entities %}
-              {% if is_device_attr(ent,'model','LZW31-SN') and ent.split('.')[0] == 'light' %}
-                {% set entities.entities = entities.entities + [ent] %}
-              {% endif %}
-            {% endfor %}
-            {{ entities.entities }}
-        - device_type: switch
-          call_type: zwave_js
-          entities: >
-            {% set entities = namespace(entities=[]) %}
-            {% for ent in all_selected_entities %}
-              {% if is_device_attr(ent,'model','LZW30-SN') and ent.split('.')[0] == 'switch' %}
-                {% set entities.entities = entities.entities + [ent] %}
-              {% endif %}
-            {% endfor %}
-            {{ entities.entities }}
-        - device_type: combo_light
-          call_type: zwave_js
-          entities: >
-            {% set entities = namespace(entities=[]) %}
-            {% for ent in all_selected_entities %}
-              {% if is_device_attr(ent,'model','LZW36') and ent.split('.')[0] == 'light' %}
-                {% set entities.entities = entities.entities + [ent] %}
-              {% endif %}
-            {% endfor %}
-            {{ entities.entities }}
-        - device_type: combo_fan
-          call_type: zwave_js
-          entities: >
-            {% set entities = namespace(entities=[]) %}
-            {% for ent in all_selected_entities %}
-              {% if is_device_attr(ent,'model','LZW36') and ent.split('.')[0] == 'fan' %}
-                {% set entities.entities = entities.entities + [ent] %}
-              {% endif %}
-            {% endfor %}
-            {{ entities.entities }}
         - device_type: blue_dimmer_switch
           call_type: z2m
           entities: >
@@ -572,18 +507,6 @@ sequence:
               {{ LEDcolor != "no change" }}
             sequence:
               - choose:
-                - conditions: "{{ repeat.item.call_type == 'zwave_js' }}"
-                  sequence:
-                    # Zwave JS
-                    - service: zwave_js.set_config_parameter
-                      data:
-                        entity_id: '{{ repeat.item.entities }}'
-                        parameter: |
-                          {% set effect_param = repeat.item.device_type + '_ledcolor' %}
-                          {{ parameters[effect_param] }}
-                        value: |
-                          {{ color_set[LEDcolor] }}
-              - choose:
                 - conditions: "{{ repeat.item.call_type == 'z2m' }}"
                   sequence:
                     # Zigbee2mqtt
@@ -605,18 +528,6 @@ sequence:
               {{ LEDbrightness is defined and LEDbrightness != 11 }}
             sequence:
               - choose:
-                - conditions: "{{ repeat.item.call_type == 'zwave_js' }}"
-                  sequence:
-                    # Zwave JS
-                    - service: zwave_js.set_config_parameter
-                      data:
-                        entity_id: '{{ repeat.item.entities }}'
-                        parameter: |
-                          {% set effect_param = repeat.item.device_type + '_ledbrightness' %}
-                          {{ "off" if parameters[effect_param] == 0 else parameters[effect_param] }}
-                        value: |
-                          {{ LEDbrightness }}
-              - choose:
                 - conditions: "{{ repeat.item.call_type == 'z2m' }}"
                   sequence:
                     # Zigbee2mqtt
@@ -637,18 +548,6 @@ sequence:
           - conditions: >
               {{ LEDbrightness_off is defined and LEDbrightness_off != 11 }}
             sequence:
-              - choose:
-                - conditions: "{{ repeat.item.call_type == 'zwave_js' }}"
-                  sequence:
-                    # Zwave JS
-                    - service: zwave_js.set_config_parameter
-                      data:
-                        entity_id: '{{ repeat.item.entities }}'
-                        parameter: |
-                          {% set effect_param = repeat.item.device_type + '_ledbrightness_off' %}
-                          {{ "off" if parameters[effect_param] == 0 else parameters[effect_param] }}
-                        value: |
-                          {{ LEDbrightness_off }}
               - choose:
                 - conditions: "{{ repeat.item.call_type == 'z2m' }}"
                   sequence:
@@ -675,22 +574,6 @@ sequence:
                  brightness != 11 }}
             sequence:
               - choose:
-                - conditions: "{{ repeat.item.call_type == 'zwave_js' }}"
-                  sequence:
-                    # Zwave JS
-                    - service: zwave_js.bulk_set_partial_config_parameters
-                      data:
-                        entity_id: '{{ repeat.item.entities }}'
-                        parameter: |
-                          {% set bulk_param = repeat.item.device_type + '_effect_bulk' %}
-                          {{ parameters[bulk_param] }}
-                        value: |
-                          {% if repeat.item.device_type == "switch" %}
-                            {{ color_set[color] + (brightness * 256) + (duration_values[duration] * 65536) + (switch_effects[effect] * 16777216) }}
-                          {% else %}
-                            {{ color_set[color] + (brightness * 256) + (duration_values[duration] * 65536) + (strip_effects[effect] * 16777216) }}
-                          {% endif %}
-              - choose:
                 - conditions: "{{ repeat.item.call_type == 'z2m' }}"
                   sequence:
                     # Zigbee2mqtt
@@ -704,48 +587,6 @@ sequence:
                               payload: >-
                                 {"led_effect":{"color":"{{ color_set[color] }}","duration":"{{ duration_values[duration] }}","effect":"{{ effect | replace(' ', '_') }}","level":"{{ (brightness * 256 / 10) }}"}}
 
-#################
-# Effects (not fully defined)
-# We could change aspects of the effect without knowing everything (e.g. change the brightness but not color).
-#   It turns out that changing the color or brightness resets the duration, so I question the value here unless the duration is "forever".
-##################
-#              - service: zwave_js.set_config_parameter
-#                data:
-#                  entity_id: '{{ repeat.item.entities }}'
-#                  parameter: |
-#                    {% set effect_param = repeat.item.device_type + '_effect_color' %}
-#                    {{ parameters[effect_param] }}
-#                  value: |
-#                    {{ color_set[color] }}
-#              - service: zwave_js.set_config_parameter
-#                data:
-#                  entity_id: '{{ repeat.item.entities }}'
-#                  parameter: |
-#                    {% set effect_param = repeat.item.device_type + '_effect_brightness' %}
-#                    {{ "off" if parameters[effect_param] == 0 else parameters[effect_param] }}
-#                  value: |
-#                    {{ brightness }}
-#              - service: zwave_js.set_config_parameter
-#                data:
-#                  entity_id: '{{ repeat.item.entities }}'
-#                  parameter: |
-#                    {% set effect_param = repeat.item.device_type + '_effect_duration' %}
-#                    {{ parameters[effect_param] }}
-#                  value: |
-#                    {{ duration_values[duration] }}
-#              - service: zwave_js.set_config_parameter
-#                data:
-#                  entity_id: '{{ repeat.item.entities }}'
-#                  parameter: |
-#                    {% set effect_param = repeat.item.device_type + '_effect_effect' %}
-#                    {{ parameters[effect_param] }}
-#                  value: |
-#                    {% if repeat.item == "switch" %}
-#                      {{ switch_effects[effect] }}
-#                    {% else %}
-#                      {{ strip_effects[effect] }}
-#                    {% endif %}
-
 ##################
 # Default will be to clear the effect and set the duration to 1 second.
 # Setting only the effect to "off" turned the LED off on LZW36 fan / light combos for the duration (which could be "forever").
@@ -754,24 +595,6 @@ sequence:
 # It's also a safer way to fail since the worst case scenario is that an effect is cleared.
 ##################
           default:
-            - choose:
-                - conditions: "{{ repeat.item.call_type == 'zwave_js' }}"
-                  sequence:
-                    # Zwave JS
-                    - service: zwave_js.set_config_parameter
-                      data:
-                        entity_id: '{{ repeat.item.entities }}'
-                        parameter: |
-                          {% set effect_param = repeat.item.device_type + '_effect_effect' %}
-                          {{ parameters[effect_param] }}
-                        value: 0
-                    - service: zwave_js.set_config_parameter
-                      data:
-                        entity_id: '{{ repeat.item.entities }}'
-                        parameter: |
-                          {% set effect_param = repeat.item.device_type + '_effect_duration' %}
-                          {{ parameters[effect_param] }}
-                        value: 1
             - choose:
                 - conditions: "{{ repeat.item.call_type == 'z2m' }}"
                   sequence:
@@ -785,19 +608,3 @@ sequence:
                               topic: zigbee2mqtt/{{ states[repeat.item].attributes.friendly_name }}/set
                               payload: >-
                                 {"led_effect":{"duration":"1","effect":"clear"}}
-
-# The code below was unnecessary service calls.
-#           - service: zwave_js.set_config_parameter
-#             data:
-#               entity_id: '{{ repeat.item.entities }}'
-#               parameter: |
-#                 {% set effect_param = repeat.item.device_type + '_effect_color' %}
-#                 {{ parameters[effect_param] }}
-#               value: 0
-#            - service: zwave_js.set_config_parameter
-#              data:
-#                entity_id: '{{ repeat.item.entities }}'
-#                parameter: |
-#                  {% set effect_param = repeat.item.device_type + '_effect_brightness' %}
-#                  {{ parameters[effect_param] }}
-#                value: 0
